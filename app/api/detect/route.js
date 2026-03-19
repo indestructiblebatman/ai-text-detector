@@ -1,13 +1,75 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+// In-memory rate limiting store
+// Structure: { email: { count: number, resetTime: timestamp } }
+const rateLimitStore = new Map();
+
+function getResetTime() {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  return tomorrow.getTime();
+}
+
+function checkRateLimit(email) {
+  const now = Date.now();
+  
+  if (!rateLimitStore.has(email)) {
+    rateLimitStore.set(email, {
+      count: 0,
+      resetTime: getResetTime(),
+    });
+  }
+
+  const userData = rateLimitStore.get(email);
+
+  // Reset if it's a new day
+  if (now >= userData.resetTime) {
+    userData.count = 0;
+    userData.resetTime = getResetTime();
+  }
+
+  // Check if limit exceeded (3 per day)
+  if (userData.count >= 3) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  // Increment count
+  userData.count += 1;
+  return { allowed: true, remaining: 3 - userData.count };
+}
+
 export async function POST(request) {
   try {
-    const { text } = await request.json();
+    const { text, email } = await request.json();
 
     if (!text || !text.trim()) {
       return new Response(
         JSON.stringify({ error: 'No text provided' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!email || !email.trim()) {
+      return new Response(
+        JSON.stringify({ error: 'Email is required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check rate limit
+    const rateLimit = checkRateLimit(email);
+    if (!rateLimit.allowed) {
+      return new Response(
+        JSON.stringify({ 
+          error: "You've used all 3 free analyses for today. Come back tomorrow for more.",
+          retryAfter: Math.ceil((rateLimitStore.get(email).resetTime - Date.now()) / 1000)
+        }),
+        { 
+          status: 429, 
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
 
