@@ -121,6 +121,21 @@ Sentence levels: `"human"`, `"low"`, `"medium"`, `"high"`
 - API calls may take a few seconds depending on text length
 - Results are based on Claude's analysis and should be used as a guide, not absolute truth
 
+## Quick notes about magic links
+
+- If you use passwordless email sign-in, some email clients may open links in a preview/webview which can prematurely consume magic links. If a link says "expired" or "invalid", copy the link and paste it into a full browser window.
+- The app uses an intermediate `/auth/complete` page to avoid preview prefetch issues. If you see an expired link, click "Resend login link" on the sign-in page and open the new link directly in your browser.
+
+## Running the usage smoke test
+
+There is a small smoke test script to validate the `/api/usage` endpoint. With your dev server running, run:
+
+```bash
+node scripts/test-usage.js
+```
+
+It will print the HTTP status and response body. Expect `401` when not authenticated.
+
 ## License
 
 MIT
