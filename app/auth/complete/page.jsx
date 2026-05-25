@@ -12,11 +12,16 @@ export default function AuthCompletePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [href, setHref] = useState('');
   const [hash, setHash] = useState('');
-  const [showDebug, setShowDebug] = useState(false);
+  const [showDebug, setShowDebug] = useState(true);
+  const [urlDebugData, setUrlDebugData] = useState(null);
+  const [urlDebugError, setUrlDebugError] = useState(null);
+  const [sessionHandlerAvailable, setSessionHandlerAvailable] = useState(true);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    setSupabase(createBrowserClient(supabaseUrl, supabaseKey));
+
+    const client = createBrowserClient(supabaseUrl, supabaseKey);
+    setSupabase(client);
     setHref(window.location.href);
     setHash(window.location.hash);
 
@@ -40,6 +45,41 @@ export default function AuthCompletePage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!supabase) return;
+
+    const supported = typeof supabase.auth.getSessionFromUrl === 'function';
+    setSessionHandlerAvailable(supported);
+
+    const parseSessionUrl = async () => {
+      if (!supported) return;
+
+      const { data: urlData, error: urlError } = await supabase.auth.getSessionFromUrl({
+        storeSession: true,
+      });
+      setUrlDebugData(urlData);
+      setUrlDebugError(urlError);
+
+      if (urlError) {
+        console.error('getSessionFromUrl error:', urlError);
+      }
+
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+      if (error) {
+        console.error('getSession error:', error);
+      }
+      if (session) {
+        setStatus('Sign-in complete. Redirecting...');
+        window.location.href = '/detect';
+      }
+    };
+
+    parseSessionUrl();
+  }, [supabase]);
+
   const completeSignIn = async () => {
     if (!supabase) return;
     setStatus('Completing sign-in...');
@@ -48,10 +88,11 @@ export default function AuthCompletePage() {
         const { data: urlData, error: urlError } = await supabase.auth.getSessionFromUrl({
           storeSession: true,
         });
+        setUrlDebugData(urlData);
+        setUrlDebugError(urlError);
         if (urlError) {
           console.error('getSessionFromUrl error:', urlError);
         }
-        console.log('getSessionFromUrl result:', urlData);
       }
 
       const {
@@ -92,6 +133,17 @@ export default function AuthCompletePage() {
                 <div>{href}</div>
                 <div className="mt-2"><strong>Hash:</strong></div>
                 <div>{hash}</div>
+                <div className="mt-2"><strong>Session parser available:</strong> {String(sessionHandlerAvailable)}</div>
+                {urlDebugError && (
+                  <div className="mt-2 text-red-600">
+                    <strong>getSessionFromUrl error:</strong> {urlDebugError.message || JSON.stringify(urlDebugError)}
+                  </div>
+                )}
+                {urlDebugData && (
+                  <div className="mt-2 text-green-600">
+                    <strong>getSessionFromUrl result:</strong> {JSON.stringify(urlDebugData)}
+                  </div>
+                )}
               </div>
             )}
           </div>
