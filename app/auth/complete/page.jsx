@@ -44,6 +44,13 @@ export default function AuthCompletePage() {
     if (!supabase) return;
     setStatus('Completing sign-in...');
     try {
+      // First, refresh the session to exchange the token from the URL for a session
+      const { data, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.error('Refresh error:', refreshError);
+      }
+
+      // Now check for an active session
       const {
         data: { session },
         error,
