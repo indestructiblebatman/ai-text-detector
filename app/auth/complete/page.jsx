@@ -44,31 +44,26 @@ export default function AuthCompletePage() {
     if (!supabase) return;
     setStatus('Completing sign-in...');
     try {
-      // Wait for auth state change - Supabase should pick up the token from the URL
-      const { data, error } = await new Promise((resolve) => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          console.log('Auth state changed:', event, session?.user?.email);
-          if (session) {
-            resolve({ data: { session }, error: null });
-            subscription?.unsubscribe();
-          }
+      if (typeof supabase.auth.getSessionFromUrl === 'function') {
+        const { data: urlData, error: urlError } = await supabase.auth.getSessionFromUrl({
+          storeSession: true,
         });
-
-        // Timeout after 5 seconds if no session is found
-        setTimeout(() => {
-          subscription?.unsubscribe();
-          resolve({ data: { session: null }, error: null });
-        }, 5000);
-      });
-
-      if (!data?.session) {
-        console.error('Session still not found. Checking URL hash...');
-        const { data: { session }, error: getSessionError } = await supabase.auth.getSession();
-        if (getSessionError) throw getSessionError;
-        if (!session) {
-          setStatus('No active session found yet. Please try again.');
-          return;
+        if (urlError) {
+          console.error('getSessionFromUrl error:', urlError);
         }
+        console.log('getSessionFromUrl result:', urlData);
+      }
+
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+      if (error) {
+        throw error;
+      }
+      if (!session) {
+        setStatus('No active session found yet. Please try again.');
+        return;
       }
 
       setStatus('Sign-in complete. Redirecting...');
