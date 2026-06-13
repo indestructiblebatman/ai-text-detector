@@ -2,7 +2,7 @@
 
 A full-stack web application that analyses text for AI-generated content, with sentence-level probability scoring and an inline rewrite interface.
 
-**Live:** [verascript.com](https://verascript.com)
+**Live:** https://verascript.com](https://ai-text-detector-sigma.vercel.app
 
 ---
 
